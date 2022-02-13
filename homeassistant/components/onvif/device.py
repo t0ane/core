@@ -257,6 +257,16 @@ class ONVIFDevice:
         with suppress(ONVIFError, Fault, RequestError):
             pullpoint = await self.events.async_start()
 
+        if not pullpoint:
+        with suppress(ONVIFError, Fault, RequestError):
+            LOGGER.debug(
+                "Trying to get pullpoint capabilities from device service instead of event service"
+            )
+            device_mgmt = self.device.create_devicemgmt_service()
+            event_capabilities = await device_mgmt.GetCapabilities({"Category": "Events"})
+            LOGGER.debug("Device event capabilities", event_capabilities)
+            pullpoint = event_capabilities.Events.WSPullPointSupport
+
         ptz = False
         with suppress(ONVIFError, Fault, RequestError):
             self.device.get_definition("ptz")
