@@ -18,7 +18,9 @@ from homeassistant.components.media_player.const import (
     ATTR_MEDIA_EXTRA,
     MEDIA_TYPE_APP,
     MEDIA_TYPE_CHANNEL,
+    MEDIA_TYPE_MUSIC,
     MEDIA_TYPE_URL,
+    MEDIA_TYPE_VIDEO,
     SUPPORT_BROWSE_MEDIA,
     SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE,
@@ -49,16 +51,18 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import roku_exception_handler
 from .browse_media import async_browse_media
 from .const import (
+    ATTR_ARTIST_NAME,
     ATTR_CONTENT_ID,
     ATTR_FORMAT,
     ATTR_KEYWORD,
     ATTR_MEDIA_TYPE,
+    ATTR_THUMBNAIL,
     DOMAIN,
     SERVICE_SEARCH,
 )
 from .coordinator import RokuDataUpdateCoordinator
 from .entity import RokuEntity
-from .helpers import format_channel_name
+from .helpers import format_channel_name, guess_stream_format
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,21 +80,37 @@ SUPPORT_ROKU = (
     | SUPPORT_BROWSE_MEDIA
 )
 
-ATTRS_TO_LAUNCH_PARAMS = {
-    ATTR_CONTENT_ID: "contentID",
-    ATTR_MEDIA_TYPE: "MediaType",
+
+STREAM_FORMAT_TO_MEDIA_TYPE = {
+    "dash": MEDIA_TYPE_VIDEO,
+    "hls": MEDIA_TYPE_VIDEO,
+    "ism": MEDIA_TYPE_VIDEO,
+    "m4a": MEDIA_TYPE_MUSIC,
+    "m4v": MEDIA_TYPE_VIDEO,
+    "mka": MEDIA_TYPE_MUSIC,
+    "mkv": MEDIA_TYPE_VIDEO,
+    "mks": MEDIA_TYPE_VIDEO,
+    "mp3": MEDIA_TYPE_MUSIC,
+    "mp4": MEDIA_TYPE_VIDEO,
+    "wma": MEDIA_TYPE_MUSIC,
 }
 
-PLAY_MEDIA_SUPPORTED_TYPES = (
-    MEDIA_TYPE_APP,
-    MEDIA_TYPE_CHANNEL,
-    MEDIA_TYPE_URL,
-    FORMAT_CONTENT_TYPE[HLS_PROVIDER],
-)
+ATTRS_TO_LAUNCH_PARAMS = {
+    ATTR_CONTENT_ID: "contentID",
+    ATTR_MEDIA_TYPE: "mediaType",
+}
 
-ATTRS_TO_PLAY_VIDEO_PARAMS = {
+ATTRS_TO_PLAY_ON_ROKU_PARAMS = {
     ATTR_NAME: "videoName",
     ATTR_FORMAT: "videoFormat",
+    ATTR_THUMBNAIL: "k",
+}
+
+ATTRS_TO_PLAY_ON_ROKU_AUDIO_PARAMS = {
+    ATTR_NAME: "songName",
+    ATTR_FORMAT: "songFormat",
+    ATTR_ARTIST_NAME: "artistName",
+    ATTR_THUMBNAIL: "albumArtUrl",
 }
 
 SEARCH_SCHEMA = {vol.Required(ATTR_KEYWORD): str}
@@ -366,25 +386,46 @@ class RokuMediaPlayer(RokuEntity, MediaPlayerEntity):
     ) -> None:
         """Play media from a URL or file, launch an application, or tune to a channel."""
         extra: dict[str, Any] = kwargs.get(ATTR_MEDIA_EXTRA) or {}
+        original_media_type: str = media_type
+        stream_format: str | None = extra.get(ATTR_FORMAT)
 
         # Handle media_source
         if media_source.is_media_source_id(media_id):
             sourced_media = await media_source.async_resolve_media(self.hass, media_id)
             media_type = MEDIA_TYPE_URL
             media_id = sourced_media.url
+            stream_format = guess_stream_format(media_id, sourced_media.mime_type)
 
         # If media ID is a relative URL, we serve it from HA.
         media_id = async_process_play_media_url(self.hass, media_id)
 
-        if media_type not in PLAY_MEDIA_SUPPORTED_TYPES:
-            _LOGGER.error(
-                "Invalid media type %s. Only %s, %s, %s, and camera HLS streams are supported",
-                media_type,
-                MEDIA_TYPE_APP,
-                MEDIA_TYPE_CHANNEL,
-                MEDIA_TYPE_URL,
-            )
-            return
+        if media_type == FORMAT_CONTENT_TYPE[HLS_PROVIDER]:
+            media_type = MEDIA_TYPE_VIDEO
+            stream_format = "hls"
+
+        if media_type in (MEDIA_TYPE_MUSIC, MEDIA_TYPE_URL, MEDIA_TYPE_VIDEO):
+            if stream_format is None:
+                stream_format = guess_stream_format(media_id)
+
+            if extra.get(ATTR_FORMAT) is None:
+                extra[ATTR_FORMAT] = stream_format
+
+            if extra[ATTR_FORMAT] not in STREAM_FORMAT_TO_MEDIA_TYPE:
+                _LOGGER.error(
+                    "Media type %s is not supported with format %s",
+                    original_media_type,
+                    extra[ATTR_FORMAT],
+                )
+                return
+
+            if (
+                media_type == MEDIA_TYPE_URL
+                and STREAM_FORMAT_TO_MEDIA_TYPE[extra[ATTR_FORMAT]] == MEDIA_TYPE_MUSIC
+            ):
+                media_type = MEDIA_TYPE_MUSIC
+
+            if extra.get(ATTR_NAME) is None:
+                extra[ATTR_NAME] = "Home Assistant"
 
         if media_type == MEDIA_TYPE_APP:
             params = {
@@ -396,20 +437,30 @@ class RokuMediaPlayer(RokuEntity, MediaPlayerEntity):
             await self.coordinator.roku.launch(media_id, params)
         elif media_type == MEDIA_TYPE_CHANNEL:
             await self.coordinator.roku.tune(media_id)
-        elif media_type == MEDIA_TYPE_URL:
+        elif media_type == MEDIA_TYPE_MUSIC:
+            if extra.get(ATTR_ARTIST_NAME) is None:
+                extra[ATTR_ARTIST_NAME] = "Home Assistant"
+
             params = {
                 param: extra[attr]
-                for (attr, param) in ATTRS_TO_PLAY_VIDEO_PARAMS.items()
+                for (attr, param) in ATTRS_TO_PLAY_ON_ROKU_AUDIO_PARAMS.items()
+                if attr in extra
+            }
+
+            params = {"t": "a", **params}
+
+            await self.coordinator.roku.play_on_roku(media_id, params)
+        elif media_type in (MEDIA_TYPE_URL, MEDIA_TYPE_VIDEO):
+            params = {
+                param: extra[attr]
+                for (attr, param) in ATTRS_TO_PLAY_ON_ROKU_PARAMS.items()
                 if attr in extra
             }
 
             await self.coordinator.roku.play_on_roku(media_id, params)
-        elif media_type == FORMAT_CONTENT_TYPE[HLS_PROVIDER]:
-            params = {
-                "MediaType": "hls",
-            }
-
-            await self.coordinator.roku.play_on_roku(media_id, params)
+        else:
+            _LOGGER.error("Media type %s is not supported", media_type)
+            return
 
         await self.coordinator.async_request_refresh()
 
