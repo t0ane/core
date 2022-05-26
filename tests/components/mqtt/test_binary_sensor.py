@@ -41,6 +41,7 @@ from .test_common import (
     help_test_reloadable_late,
     help_test_setting_attribute_via_mqtt_json_message,
     help_test_setting_attribute_with_template,
+    help_test_setup_manual_entity_from_yaml,
     help_test_unique_id,
     help_test_update_with_json_attrs_bad_JSON,
     help_test_update_with_json_attrs_not_dict,
@@ -887,8 +888,12 @@ async def test_reloadable_late(hass, mqtt_client_mock, caplog, tmp_path):
     await help_test_reloadable_late(hass, caplog, tmp_path, domain, config)
 
 
+@pytest.mark.parametrize(
+    "payload1, state1, payload2, state2",
+    [("ON", "on", "OFF", "off"), ("OFF", "off", "ON", "on")],
+)
 async def test_cleanup_triggers_and_restoring_state(
-    hass, mqtt_mock, caplog, tmp_path, freezer
+    hass, mqtt_mock, caplog, tmp_path, freezer, payload1, state1, payload2, state2
 ):
     """Test cleanup old triggers at reloading and restoring the state."""
     domain = binary_sensor.DOMAIN
@@ -909,13 +914,13 @@ async def test_cleanup_triggers_and_restoring_state(
         {binary_sensor.DOMAIN: [config1, config2]},
     )
     await hass.async_block_till_done()
-    async_fire_mqtt_message(hass, "test-topic1", "ON")
+    async_fire_mqtt_message(hass, "test-topic1", payload1)
     state = hass.states.get("binary_sensor.test1")
-    assert state.state == "on"
+    assert state.state == state1
 
-    async_fire_mqtt_message(hass, "test-topic2", "ON")
+    async_fire_mqtt_message(hass, "test-topic2", payload1)
     state = hass.states.get("binary_sensor.test2")
-    assert state.state == "on"
+    assert state.state == state1
 
     freezer.move_to("2022-02-02 12:01:10+01:00")
 
@@ -931,18 +936,18 @@ async def test_cleanup_triggers_and_restoring_state(
     assert "State recovered after reload for binary_sensor.test2" not in caplog.text
 
     state = hass.states.get("binary_sensor.test1")
-    assert state.state == "on"
+    assert state.state == state1
 
     state = hass.states.get("binary_sensor.test2")
     assert state.state == STATE_UNAVAILABLE
 
-    async_fire_mqtt_message(hass, "test-topic1", "OFF")
+    async_fire_mqtt_message(hass, "test-topic1", payload2)
     state = hass.states.get("binary_sensor.test1")
-    assert state.state == "off"
+    assert state.state == state2
 
-    async_fire_mqtt_message(hass, "test-topic2", "OFF")
+    async_fire_mqtt_message(hass, "test-topic2", payload2)
     state = hass.states.get("binary_sensor.test2")
-    assert state.state == "off"
+    assert state.state == state2
 
 
 async def test_skip_restoring_state_with_over_due_expire_trigger(
@@ -969,3 +974,15 @@ async def test_skip_restoring_state_with_over_due_expire_trigger(
         assert await async_setup_component(hass, domain, {domain: config3})
         await hass.async_block_till_done()
     assert "Skip state recovery after reload for binary_sensor.test3" in caplog.text
+
+
+async def test_setup_manual_entity_from_yaml(hass, caplog, tmp_path):
+    """Test setup manual configured MQTT entity."""
+    platform = binary_sensor.DOMAIN
+    config = copy.deepcopy(DEFAULT_CONFIG[platform])
+    config["name"] = "test"
+    del config["platform"]
+    await help_test_setup_manual_entity_from_yaml(
+        hass, caplog, tmp_path, platform, config
+    )
+    assert hass.states.get(f"{platform}.test") is not None

@@ -14,10 +14,7 @@ from homeassistant import config_entries
 from homeassistant.components import zeroconf
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow, FlowResult
-from homeassistant.helpers.device_registry import (
-    CONNECTION_NETWORK_MAC,
-    async_get_registry as async_get_device_registry,
-)
+from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, KNOWN_DEVICES
 from .utils import async_get_controller
@@ -35,8 +32,6 @@ HOMEKIT_IGNORE = [
 ]
 
 PAIRING_FILE = "pairing.json"
-
-MDNS_SUFFIX = "._hap._tcp.local."
 
 PIN_FORMAT = re.compile(r"^(\d{3})-{0,1}(\d{2})-{0,1}(\d{3})$")
 
@@ -113,9 +108,10 @@ class HomekitControllerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             key = user_input["device"]
-            self.hkid = self.devices[key].device_id
-            self.model = self.devices[key].info["md"]
-            self.name = key[: -len(MDNS_SUFFIX)] if key.endswith(MDNS_SUFFIX) else key
+            self.hkid = self.devices[key].description.id
+            self.model = self.devices[key].description.model
+            self.name = self.devices[key].description.name
+
             await self.async_set_unique_id(
                 normalize_hkid(self.hkid), raise_on_progress=False
             )
@@ -127,12 +123,10 @@ class HomekitControllerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         self.devices = {}
 
-        async for host in self.controller.async_discover():
-            status_flags = int(host.info["sf"])
-            paired = not status_flags & 0x01
-            if paired:
+        async for discovery in self.controller.async_discover():
+            if discovery.paired:
                 continue
-            self.devices[host.info["name"]] = host
+            self.devices[discovery.description.name] = discovery
 
         if not self.devices:
             return self.async_abort(reason="no_devices")
@@ -158,17 +152,17 @@ class HomekitControllerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         except aiohomekit.AccessoryNotFoundError:
             return self.async_abort(reason="accessory_not_found_error")
 
-        self.name = device.info["name"].replace("._hap._tcp.local.", "")
-        self.model = device.info["md"]
-        self.hkid = normalize_hkid(device.info["id"])
+        self.name = device.description.name
+        self.model = device.description.model
+        self.hkid = device.description.id
 
         return self._async_step_pair_show_form()
 
     async def _hkid_is_homekit(self, hkid):
         """Determine if the device is a homekit bridge or accessory."""
-        dev_reg = await async_get_device_registry(self.hass)
+        dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get_device(
-            identifiers=set(), connections={(CONNECTION_NETWORK_MAC, hkid)}
+            identifiers=set(), connections={(dr.CONNECTION_NETWORK_MAC, hkid)}
         )
 
         if device is None:
@@ -296,7 +290,10 @@ class HomekitControllerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(updates=updated_ip_port)
 
         for progress in self._async_in_progress(include_uninitialized=True):
-            if progress["context"].get("unique_id") == normalized_hkid:
+            context = progress["context"]
+            if context.get("unique_id") == normalized_hkid and not context.get(
+                "pairing"
+            ):
                 if paired:
                     # If the device gets paired, we want to dismiss
                     # an existing discovery since we can no longer
@@ -353,6 +350,7 @@ class HomekitControllerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             await self._async_setup_controller()
 
         if pair_info and self.finish_pairing:
+            self.context["pairing"] = True
             code = pair_info["pairing_code"]
             try:
                 code = ensure_pin_format(

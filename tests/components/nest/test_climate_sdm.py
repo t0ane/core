@@ -6,8 +6,10 @@ pubsub subscriber.
 """
 
 from collections.abc import Awaitable, Callable
+from http import HTTPStatus
 from typing import Any
 
+import aiohttp
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.event import EventMessage
 import pytest
@@ -41,6 +43,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from .common import (
     DEVICE_COMMAND,
@@ -674,6 +677,65 @@ async def test_thermostat_set_heat(
     assert auth.json == {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
         "params": {"heatCelsius": 20.0},
+    }
+
+
+async def test_thermostat_set_temperature_hvac_mode(
+    hass: HomeAssistant,
+    setup_platform: PlatformSetup,
+    auth: FakeAuth,
+    create_device: CreateDevice,
+) -> None:
+    """Test setting HVAC mode while setting temperature."""
+    create_device.create(
+        {
+            "sdm.devices.traits.ThermostatHvac": {"status": "OFF"},
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "OFF",
+            },
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "coolCelsius": 25.0,
+            },
+        },
+    )
+    await setup_platform()
+
+    assert len(hass.states.async_all()) == 1
+    thermostat = hass.states.get("climate.my_thermostat")
+    assert thermostat is not None
+    assert thermostat.state == HVAC_MODE_OFF
+
+    await common.async_set_temperature(hass, temperature=24.0, hvac_mode=HVAC_MODE_COOL)
+    await hass.async_block_till_done()
+
+    assert auth.method == "post"
+    assert auth.url == DEVICE_COMMAND
+    assert auth.json == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
+        "params": {"coolCelsius": 24.0},
+    }
+
+    await common.async_set_temperature(hass, temperature=26.0, hvac_mode=HVAC_MODE_HEAT)
+    await hass.async_block_till_done()
+
+    assert auth.method == "post"
+    assert auth.url == DEVICE_COMMAND
+    assert auth.json == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
+        "params": {"heatCelsius": 26.0},
+    }
+
+    await common.async_set_temperature(
+        hass, target_temp_low=20.0, target_temp_high=24.0, hvac_mode=HVAC_MODE_HEAT_COOL
+    )
+    await hass.async_block_till_done()
+
+    assert auth.method == "post"
+    assert auth.url == DEVICE_COMMAND
+    assert auth.json == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
+        "params": {"heatCelsius": 20.0, "coolCelsius": 24.0},
     }
 
 
@@ -1321,3 +1383,60 @@ async def test_thermostat_invalid_set_preset_mode(
     # Preset is unchanged
     assert thermostat.attributes[ATTR_PRESET_MODE] == PRESET_NONE
     assert thermostat.attributes[ATTR_PRESET_MODES] == [PRESET_ECO, PRESET_NONE]
+
+
+async def test_thermostat_hvac_mode_failure(
+    hass: HomeAssistant,
+    setup_platform: PlatformSetup,
+    auth: FakeAuth,
+    create_device: CreateDevice,
+) -> None:
+    """Test setting an hvac_mode that is not supported."""
+    create_device.create(
+        {
+            "sdm.devices.traits.ThermostatHvac": {"status": "OFF"},
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "OFF",
+            },
+            "sdm.devices.traits.Fan": {
+                "timerMode": "OFF",
+                "timerTimeout": "2019-05-10T03:22:54Z",
+            },
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECO", "OFF"],
+                "mode": "OFF",
+                "heatCelsius": 15.0,
+                "coolCelsius": 28.0,
+            },
+        }
+    )
+    await setup_platform()
+
+    assert len(hass.states.async_all()) == 1
+    thermostat = hass.states.get("climate.my_thermostat")
+    assert thermostat is not None
+    assert thermostat.state == HVAC_MODE_OFF
+    assert thermostat.attributes[ATTR_HVAC_ACTION] == CURRENT_HVAC_OFF
+
+    auth.responses = [aiohttp.web.Response(status=HTTPStatus.BAD_REQUEST)]
+    with pytest.raises(HomeAssistantError):
+        await common.async_set_hvac_mode(hass, HVAC_MODE_HEAT)
+        await hass.async_block_till_done()
+
+    auth.responses = [aiohttp.web.Response(status=HTTPStatus.BAD_REQUEST)]
+    with pytest.raises(HomeAssistantError):
+        await common.async_set_temperature(
+            hass, hvac_mode=HVAC_MODE_HEAT, temperature=25.0
+        )
+        await hass.async_block_till_done()
+
+    auth.responses = [aiohttp.web.Response(status=HTTPStatus.BAD_REQUEST)]
+    with pytest.raises(HomeAssistantError):
+        await common.async_set_fan_mode(hass, FAN_ON)
+        await hass.async_block_till_done()
+
+    auth.responses = [aiohttp.web.Response(status=HTTPStatus.BAD_REQUEST)]
+    with pytest.raises(HomeAssistantError):
+        await common.async_set_preset_mode(hass, PRESET_ECO)
+        await hass.async_block_till_done()

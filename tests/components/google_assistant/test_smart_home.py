@@ -385,7 +385,7 @@ async def test_query_message(hass):
                 "light.another_light": {
                     "on": True,
                     "online": True,
-                    "brightness": 30,
+                    "brightness": 31,
                     "color": {
                         "spectrumHsv": {
                             "hue": 180,
@@ -875,7 +875,7 @@ async def test_serialize_input_boolean(hass):
     state = State("input_boolean.bla", "on")
     # pylint: disable=protected-access
     entity = sh.GoogleEntity(hass, BASIC_CONFIG, state)
-    result = await entity.sync_serialize(None)
+    result = entity.sync_serialize(None, "mock-uuid")
     assert result == {
         "id": "input_boolean.bla",
         "attributes": {},
@@ -1510,7 +1510,7 @@ async def test_query_recover(hass, caplog):
         "payload": {
             "devices": {
                 "light.bad": {"online": False},
-                "light.good": {"on": True, "online": True, "brightness": 19},
+                "light.good": {"on": True, "online": True, "brightness": 20},
             }
         },
     }
