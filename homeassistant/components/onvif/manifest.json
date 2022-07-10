@@ -1,6 +1,7 @@
 {
   "domain": "onvif",
   "name": "ONVIF",
+  "version": "1.1.0-beta",
   "documentation": "https://www.home-assistant.io/integrations/onvif",
   "requirements": ["onvif-zeep-async==1.2.1", "WSDiscovery==2.0.0"],
   "version": "1.1.0-beta",
