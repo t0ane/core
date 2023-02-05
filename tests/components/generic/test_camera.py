@@ -20,6 +20,7 @@ from homeassistant.components.generic.const import (
     CONF_STREAM_SOURCE,
     DOMAIN,
 )
+from homeassistant.components.stream.const import CONF_RTSP_TRANSPORT
 from homeassistant.components.websocket_api.const import TYPE_RESULT
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_VERIFY_SSL
@@ -209,6 +210,7 @@ async def test_stream_source(hass, hass_client, hass_ws_client, fakeimgbytes_png
             CONF_VERIFY_SSL: False,
             CONF_USERNAME: "barney",
             CONF_PASSWORD: "betty",
+            CONF_RTSP_TRANSPORT: "http",
         },
     )
     mock_entry.add_to_hass(hass)
@@ -484,7 +486,6 @@ async def test_no_still_image_url(hass, hass_client):
         "homeassistant.components.generic.camera.GenericCamera.stream_source",
         return_value=None,
     ) as mock_stream_source:
-
         # First test when there is no stream_source should fail
         resp = await client.get("/api/camera_proxy/camera.config_test")
         await hass.async_block_till_done()
@@ -492,7 +493,6 @@ async def test_no_still_image_url(hass, hass_client):
         assert resp.status == HTTPStatus.INTERNAL_SERVER_ERROR
 
     with patch("homeassistant.components.camera.create_stream") as mock_create_stream:
-
         # Now test when creating the stream succeeds
         mock_stream = Mock()
         mock_stream.async_get_image = AsyncMock()

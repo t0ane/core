@@ -6,7 +6,7 @@ import pytest
 import voluptuous as vol
 
 from homeassistant.components import input_boolean, switch
-from homeassistant.components.humidifier.const import (
+from homeassistant.components.humidifier import (
     ATTR_HUMIDITY,
     DOMAIN,
     MODE_AWAY,
@@ -687,11 +687,11 @@ async def test_init_ignores_tolerance(hass, setup_comp_3):
     calls = await _setup_switch(hass, True)
     _setup_sensor(hass, 39)
     await hass.async_block_till_done()
-    assert 1 == len(calls)
+    assert len(calls) == 1
     call = calls[0]
-    assert HASS_DOMAIN == call.domain
-    assert SERVICE_TURN_OFF == call.service
-    assert ENT_SWITCH == call.data["entity_id"]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == ENT_SWITCH
 
 
 async def test_humidity_change_dry_off_within_tolerance(hass, setup_comp_3):
@@ -1441,8 +1441,7 @@ async def test_no_restore_state(hass):
 
 
 async def test_restore_state_uncoherence_case(hass):
-    """
-    Test restore from a strange state.
+    """Test restore from a strange state.
 
     - Turn the generic hygrostat off
     - Restart HA and restore state from DB

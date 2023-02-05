@@ -379,7 +379,7 @@ async def test_light_without_brightness_can_be_turned_off(hass_hue, hue_client):
     assert len(turn_off_calls) == 1
     call = turn_off_calls[-1]
 
-    assert light.DOMAIN == call.domain
+    assert call.domain == light.DOMAIN
     assert call.service == SERVICE_TURN_OFF
     assert "light.no_brightness" in call.data[ATTR_ENTITY_ID]
 
@@ -421,7 +421,7 @@ async def test_light_without_brightness_can_be_turned_on(hass_hue, hue_client):
     assert len(turn_on_calls) == 1
     call = turn_on_calls[-1]
 
-    assert light.DOMAIN == call.domain
+    assert call.domain == light.DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert "light.no_brightness" in call.data[ATTR_ENTITY_ID]
 
@@ -829,7 +829,7 @@ async def test_put_light_state_climate_set_temperature(hass_hue, hue_client):
     assert len(hvac_result_json) == 2
 
     hvac = hass_hue.states.get("climate.hvac")
-    assert hvac.state == climate.const.HVAC_MODE_COOL
+    assert hvac.state == climate.HVACMode.COOL
     assert hvac.attributes[climate.ATTR_TEMPERATURE] == temperature
 
     # Make sure we can't change the ecobee temperature since it's not exposed

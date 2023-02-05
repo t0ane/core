@@ -25,7 +25,7 @@ async def test_show_form(hass):
         DOMAIN, context={"source": SOURCE_USER}
     )
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == SOURCE_USER
 
 
@@ -53,7 +53,6 @@ async def test_invalid_api_key(hass):
         "homeassistant.components.accuweather.AccuWeather._async_get_data",
         side_effect=InvalidApiKeyError("Invalid API key"),
     ):
-
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": SOURCE_USER},
@@ -69,7 +68,6 @@ async def test_api_error(hass):
         "homeassistant.components.accuweather.AccuWeather._async_get_data",
         side_effect=ApiError("Invalid response from AccuWeather API"),
     ):
-
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": SOURCE_USER},
@@ -87,7 +85,6 @@ async def test_requests_exceeded_error(hass):
             "The allowed number of requests has been exceeded"
         ),
     ):
-
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": SOURCE_USER},
@@ -127,14 +124,13 @@ async def test_create_entry(hass):
     ), patch(
         "homeassistant.components.accuweather.async_setup_entry", return_value=True
     ):
-
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": SOURCE_USER},
             data=VALID_CONFIG,
         )
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+        assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
         assert result["title"] == "abcd"
         assert result["data"][CONF_NAME] == "abcd"
         assert result["data"][CONF_LATITUDE] == 55.55
@@ -171,14 +167,14 @@ async def test_options_flow(hass):
 
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
-        assert result["step_id"] == "user"
+        assert result["type"] == data_entry_flow.FlowResultType.FORM
+        assert result["step_id"] == "init"
 
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], user_input={CONF_FORECAST: True}
         )
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+        assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
         assert config_entry.options == {CONF_FORECAST: True}
 
         await hass.async_block_till_done()

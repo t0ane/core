@@ -36,7 +36,6 @@ async def test_form(hass):
         "homeassistant.components.ws66i.async_setup_entry",
         return_value=True,
     ) as mock_setup_entry:
-
         ws66i_instance = mock_ws66i.return_value
 
         result2 = await hass.config_entries.flow.async_configure(
@@ -126,7 +125,7 @@ async def test_options_flow(hass):
 
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+        assert result["type"] == data_entry_flow.FlowResultType.FORM
         assert result["step_id"] == "init"
 
         result = await hass.config_entries.options.async_configure(
@@ -141,7 +140,7 @@ async def test_options_flow(hass):
             },
         )
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+        assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
         assert config_entry.options[CONF_SOURCES] == {
             "1": "one",
             "2": "too",

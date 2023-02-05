@@ -1,5 +1,4 @@
-"""
-Test for Nest cameras platform for the Smart Device Management API.
+"""Test for Nest cameras platform for the Smart Device Management API.
 
 These tests fake out the subscriber/devicemanager, and are not using a real
 pubsub subscriber.
@@ -17,6 +16,7 @@ from homeassistant.components import camera
 from homeassistant.components.camera import STATE_IDLE, STATE_STREAMING, StreamType
 from homeassistant.components.nest.const import DOMAIN
 from homeassistant.components.websocket_api.const import TYPE_RESULT
+from homeassistant.const import ATTR_FRIENDLY_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -210,11 +210,11 @@ async def test_camera_device(
     camera = hass.states.get("camera.my_camera")
     assert camera is not None
     assert camera.state == STATE_STREAMING
+    assert camera.attributes.get(ATTR_FRIENDLY_NAME) == "My Camera"
 
     registry = er.async_get(hass)
     entry = registry.async_get("camera.my_camera")
     assert entry.unique_id == f"{DEVICE_ID}-camera"
-    assert entry.original_name == "My Camera"
     assert entry.domain == "camera"
 
     device_registry = dr.async_get(hass)

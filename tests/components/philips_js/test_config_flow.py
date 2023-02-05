@@ -2,7 +2,7 @@
 from unittest.mock import ANY, patch
 
 from haphilipsjs import PairingFailure
-from pytest import fixture
+import pytest
 
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.components.philips_js.const import CONF_ALLOW_NOTIFY, DOMAIN
@@ -19,7 +19,7 @@ from . import (
 from tests.common import MockConfigEntry
 
 
-@fixture(autouse=True, name="mock_setup_entry")
+@pytest.fixture(autouse=True, name="mock_setup_entry")
 def mock_setup_entry_fixture():
     """Disable component setup."""
     with patch(
@@ -30,7 +30,7 @@ def mock_setup_entry_fixture():
         yield mock_setup_entry
 
 
-@fixture
+@pytest.fixture
 async def mock_tv_pairable(mock_tv):
     """Return a mock tv that is pariable."""
     mock_tv.system = MOCK_SYSTEM_UNPAIRED
@@ -120,6 +120,7 @@ async def test_pairing(hass, mock_tv_pairable, mock_setup_entry):
     )
 
     assert result == {
+        "context": {"source": "user", "unique_id": "ABCDEFGHIJKLF"},
         "flow_id": ANY,
         "type": "create_entry",
         "description": None,
@@ -219,12 +220,12 @@ async def test_options_flow(hass):
 
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "init"
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], user_input={CONF_ALLOW_NOTIFY: True}
     )
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert config_entry.options == {CONF_ALLOW_NOTIFY: True}

@@ -7,7 +7,7 @@ from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, CONF_MODE
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
-from .test_weather import MockLocation
+from . import MockLocation
 
 from tests.common import MockConfigEntry, mock_registry
 
@@ -89,7 +89,6 @@ async def test_flow_entry_created_from_user_input():
         "async_entries",
         return_value=[],
     ) as config_entries:
-
         result = await flow.async_step_user(user_input=test_data)
 
         assert result["type"] == "create_entry"
@@ -116,7 +115,6 @@ async def test_flow_entry_config_entry_already_exists():
     ) as config_form, patch.object(
         flow.hass.config_entries, "async_entries", return_value={"home": test_data}
     ) as config_entries:
-
         await flow.async_step_user(user_input=test_data)
 
         assert len(config_form.mock_calls) == 1
@@ -159,7 +157,7 @@ async def test_config_entry_migration(hass):
     )
 
     with patch(
-        "homeassistant.components.ipma.weather.async_get_location",
+        "pyipma.location.Location.get",
         return_value=MockLocation(),
     ):
         assert await async_setup_component(hass, DOMAIN, {})

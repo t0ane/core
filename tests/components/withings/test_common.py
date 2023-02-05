@@ -19,12 +19,9 @@ from homeassistant.components.withings.common import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.config_entry_oauth2_flow import AbstractOAuth2Implementation
 
+from .common import ComponentFactory, get_data_manager_by_user_id, new_profile_config
+
 from tests.common import MockConfigEntry
-from tests.components.withings.common import (
-    ComponentFactory,
-    get_data_manager_by_user_id,
-    new_profile_config,
-)
 from tests.test_util.aiohttp import AiohttpClientMocker
 
 
@@ -166,7 +163,6 @@ async def test_data_manager_webhook_subscription(
         WebhookConfig(id="1234", url="http://localhost/api/webhook/1234", enabled=True),
     )
 
-    # pylint: disable=protected-access
     data_manager._notify_subscribe_delay = datetime.timedelta(seconds=0)
     data_manager._notify_unsubscribe_delay = datetime.timedelta(seconds=0)
 
@@ -214,27 +210,21 @@ async def test_data_manager_webhook_subscription(
     api.notify_subscribe.assert_any_call(
         data_manager.webhook_config.url, NotifyAppli.SLEEP
     )
-    try:
+
+    with pytest.raises(AssertionError):
         api.notify_subscribe.assert_any_call(
             data_manager.webhook_config.url, NotifyAppli.USER
         )
-        assert False
-    except AssertionError:
-        pass
-    try:
+
+    with pytest.raises(AssertionError):
         api.notify_subscribe.assert_any_call(
             data_manager.webhook_config.url, NotifyAppli.BED_IN
         )
-        assert False
-    except AssertionError:
-        pass
-    try:
+
+    with pytest.raises(AssertionError):
         api.notify_subscribe.assert_any_call(
             data_manager.webhook_config.url, NotifyAppli.BED_OUT
         )
-        assert False
-    except AssertionError:
-        pass
 
     # Test unsubscribing.
     await data_manager.async_unsubscribe_webhook()

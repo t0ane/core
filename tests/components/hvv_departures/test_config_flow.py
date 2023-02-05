@@ -42,7 +42,6 @@ async def test_user_flow(hass):
         "homeassistant.components.hvv_departures.async_setup_entry",
         return_value=True,
     ):
-
         # step: user
 
         result_user = await hass.config_entries.flow.async_init(
@@ -103,7 +102,6 @@ async def test_user_flow_no_results(hass):
         "homeassistant.components.hvv_departures.async_setup_entry",
         return_value=True,
     ):
-
         # step: user
 
         result_user = await hass.config_entries.flow.async_init(
@@ -139,7 +137,6 @@ async def test_user_flow_invalid_auth(hass):
             "Authentication failed!",
         ),
     ):
-
         # step: user
         result_user = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -162,7 +159,6 @@ async def test_user_flow_cannot_connect(hass):
         "homeassistant.components.hvv_departures.hub.GTI.init",
         side_effect=CannotConnect(),
     ):
-
         # step: user
         result_user = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -188,7 +184,6 @@ async def test_user_flow_station(hass):
         "homeassistant.components.hvv_departures.hub.GTI.checkName",
         return_value={"returnCode": "OK", "results": []},
     ):
-
         # step: user
 
         result_user = await hass.config_entries.flow.async_init(
@@ -273,7 +268,7 @@ async def test_options_flow(hass):
 
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+        assert result["type"] == data_entry_flow.FlowResultType.FORM
         assert result["step_id"] == "init"
 
         result = await hass.config_entries.options.async_configure(
@@ -281,7 +276,7 @@ async def test_options_flow(hass):
             user_input={CONF_FILTER: ["0"], CONF_OFFSET: 15, CONF_REAL_TIME: False},
         )
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+        assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
         assert config_entry.options == {
             CONF_FILTER: [
                 {
@@ -329,7 +324,7 @@ async def test_options_flow_invalid_auth(hass):
     ):
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+        assert result["type"] == data_entry_flow.FlowResultType.FORM
         assert result["step_id"] == "init"
 
         assert result["errors"] == {"base": "invalid_auth"}
@@ -364,7 +359,7 @@ async def test_options_flow_cannot_connect(hass):
     ):
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-        assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+        assert result["type"] == data_entry_flow.FlowResultType.FORM
         assert result["step_id"] == "init"
 
         assert result["errors"] == {"base": "cannot_connect"}

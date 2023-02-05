@@ -6,14 +6,16 @@ from collections.abc import Callable, Hashable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
+from aiohttp import web
 import voluptuous as vol
 
 from homeassistant.auth.models import RefreshToken, User
+from homeassistant.components.http import current_request
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, Unauthorized
-from homeassistant.helpers.json import JSON_DUMP
 
 from . import const, messages
+from .util import describe_request
 
 if TYPE_CHECKING:
     from .http import WebSocketAdapter
@@ -43,7 +45,15 @@ class ActiveConnection:
         self.refresh_token_id = refresh_token.id
         self.subscriptions: dict[Hashable, Callable[[], Any]] = {}
         self.last_id = 0
+        self.supported_features: dict[str, float] = {}
         current_connection.set(self)
+
+    def get_description(self, request: web.Request | None) -> str:
+        """Return a description of the connection."""
+        description = self.user.name or ""
+        if request:
+            description += " " + describe_request(request)
+        return description
 
     def context(self, msg: dict[str, Any]) -> Context:
         """Return a context."""
@@ -53,13 +63,6 @@ class ActiveConnection:
     def send_result(self, msg_id: int, result: Any | None = None) -> None:
         """Send a result message."""
         self.send_message(messages.result_message(msg_id, result))
-
-    async def send_big_result(self, msg_id: int, result: Any) -> None:
-        """Send a result message that would be expensive to JSON serialize."""
-        content = await self.hass.async_add_executor_job(
-            JSON_DUMP, messages.result_message(msg_id, result)
-        )
-        self.send_message(content)
 
     @callback
     def send_error(self, msg_id: int, code: str, message: str) -> None:
@@ -144,6 +147,10 @@ class ActiveConnection:
             err_message = "Unknown error"
             log_handler = self.logger.exception
 
-        log_handler("Error handling message: %s (%s)", err_message, code)
-
         self.send_message(messages.error_message(msg["id"], code, err_message))
+
+        if code:
+            err_message += f" ({code})"
+        err_message += " " + self.get_description(current_request.get())
+
+        log_handler("Error handling message: %s", err_message)

@@ -1,5 +1,4 @@
-"""
-Test for the SmartThings climate platform.
+"""Test for the SmartThings climate platform.
 
 The only mocking required is of the underlying SmartThings API object so
 real HTTP calls are not initiated during testing.
@@ -8,7 +7,7 @@ from pysmartthings import Attribute, Capability
 from pysmartthings.device import Status
 import pytest
 
-from homeassistant.components.climate.const import (
+from homeassistant.components.climate import (
     ATTR_CURRENT_HUMIDITY,
     ATTR_CURRENT_TEMPERATURE,
     ATTR_FAN_MODE,

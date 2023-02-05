@@ -46,7 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
@@ -93,7 +93,7 @@ class PoolSenseDataUpdateCoordinator(DataUpdateCoordinator):
         async with async_timeout.timeout(10):
             try:
                 data = await self.poolsense.get_poolsense_data()
-            except (PoolSenseError) as error:
+            except PoolSenseError as error:
                 _LOGGER.error("PoolSense query did not complete")
                 raise UpdateFailed(error) from error
 

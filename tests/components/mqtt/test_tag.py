@@ -4,12 +4,16 @@ import json
 from unittest.mock import ANY, patch
 
 import pytest
+from voluptuous import MultipleInvalid
 
 from homeassistant.components.device_automation import DeviceAutomationType
 from homeassistant.components.mqtt.const import DOMAIN as MQTT_DOMAIN
 from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
+
+from .test_common import help_test_unload_config_entry
 
 from tests.common import (
     MockConfigEntry,
@@ -435,6 +439,7 @@ async def test_entity_device_info_with_connection(hass, mqtt_mock_entry_no_yaml_
                 "manufacturer": "Whatever",
                 "name": "Beer",
                 "model": "Glass",
+                "hw_version": "rev1",
                 "sw_version": "0.1-beta",
             },
         }
@@ -450,6 +455,7 @@ async def test_entity_device_info_with_connection(hass, mqtt_mock_entry_no_yaml_
     assert device.manufacturer == "Whatever"
     assert device.name == "Beer"
     assert device.model == "Glass"
+    assert device.hw_version == "rev1"
     assert device.sw_version == "0.1-beta"
 
 
@@ -466,6 +472,7 @@ async def test_entity_device_info_with_identifier(hass, mqtt_mock_entry_no_yaml_
                 "manufacturer": "Whatever",
                 "name": "Beer",
                 "model": "Glass",
+                "hw_version": "rev1",
                 "sw_version": "0.1-beta",
             },
         }
@@ -479,6 +486,7 @@ async def test_entity_device_info_with_identifier(hass, mqtt_mock_entry_no_yaml_
     assert device.manufacturer == "Whatever"
     assert device.name == "Beer"
     assert device.model == "Glass"
+    assert device.hw_version == "rev1"
     assert device.sw_version == "0.1-beta"
 
 
@@ -797,3 +805,72 @@ async def test_cleanup_device_with_entity2(
     # Verify device registry entry is cleared
     device_entry = device_reg.async_get_device({("mqtt", "helloworld")})
     assert device_entry is None
+
+
+@pytest.mark.xfail(raises=MultipleInvalid)
+async def test_update_with_bad_config_not_breaks_discovery(
+    hass: HomeAssistant,
+    mqtt_mock_entry_no_yaml_config,
+    tag_mock,
+) -> None:
+    """Test a bad update does not break discovery."""
+    await mqtt_mock_entry_no_yaml_config()
+    config1 = {
+        "topic": "test-topic",
+        "device": {"identifiers": ["helloworld"]},
+    }
+    config2 = {
+        "topic": "test-topic",
+        "device": {"bad_key": "some bad value"},
+    }
+
+    config3 = {
+        "topic": "test-topic-update",
+        "device": {"identifiers": ["helloworld"]},
+    }
+
+    data1 = json.dumps(config1)
+    data2 = json.dumps(config2)
+    data3 = json.dumps(config3)
+
+    async_fire_mqtt_message(hass, "homeassistant/tag/bla1/config", data1)
+    await hass.async_block_till_done()
+
+    # Update with bad identifier
+    async_fire_mqtt_message(hass, "homeassistant/tag/bla1/config", data2)
+    await hass.async_block_till_done()
+
+    # Topic update
+    async_fire_mqtt_message(hass, "homeassistant/tag/bla1/config", data3)
+    await hass.async_block_till_done()
+
+    # Fake tag scan.
+    async_fire_mqtt_message(hass, "test-topic-update", "12345")
+
+    await hass.async_block_till_done()
+    tag_mock.assert_called_once_with(ANY, "12345", ANY)
+
+
+async def test_unload_entry(hass, device_reg, mqtt_mock, tag_mock, tmp_path) -> None:
+    """Test unloading the MQTT entry."""
+
+    config = copy.deepcopy(DEFAULT_CONFIG_DEVICE)
+
+    async_fire_mqtt_message(hass, "homeassistant/tag/bla1/config", json.dumps(config))
+    await hass.async_block_till_done()
+    device_entry = device_reg.async_get_device({("mqtt", "0AFFD2")})
+
+    # Fake tag scan, should be processed
+    async_fire_mqtt_message(hass, "foobar/tag_scanned", DEFAULT_TAG_SCAN)
+    await hass.async_block_till_done()
+    tag_mock.assert_called_once_with(ANY, DEFAULT_TAG_ID, device_entry.id)
+
+    tag_mock.reset_mock()
+
+    await help_test_unload_config_entry(hass, tmp_path, {})
+    await hass.async_block_till_done()
+
+    # Fake tag scan, should not be processed
+    async_fire_mqtt_message(hass, "foobar/tag_scanned", DEFAULT_TAG_SCAN)
+    await hass.async_block_till_done()
+    tag_mock.assert_not_called()

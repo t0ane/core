@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from aiohttp import web
+import async_timeout
 
 from homeassistant import core
 from homeassistant.components import (
@@ -23,7 +24,7 @@ from homeassistant.components import (
     scene,
     script,
 )
-from homeassistant.components.climate.const import (
+from homeassistant.components.climate import (
     SERVICE_SET_TEMPERATURE,
     ClimateEntityFeature,
 )
@@ -34,10 +35,7 @@ from homeassistant.components.cover import (
 )
 from homeassistant.components.fan import ATTR_PERCENTAGE, FanEntityFeature
 from homeassistant.components.http import HomeAssistantView
-from homeassistant.components.humidifier.const import (
-    ATTR_HUMIDITY,
-    SERVICE_SET_HUMIDITY,
-)
+from homeassistant.components.humidifier import ATTR_HUMIDITY, SERVICE_SET_HUMIDITY
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
@@ -46,7 +44,7 @@ from homeassistant.components.light import (
     ATTR_XY_COLOR,
     LightEntityFeature,
 )
-from homeassistant.components.media_player.const import (
+from homeassistant.components.media_player import (
     ATTR_MEDIA_VOLUME_LEVEL,
     MediaPlayerEntityFeature,
 )
@@ -381,7 +379,7 @@ class HueOneLightChangeView(HomeAssistantView):
         else:
             parsed[STATE_ON] = entity.state != STATE_OFF
 
-        for (key, attr) in (
+        for key, attr in (
             (HUE_API_STATE_BRI, STATE_BRIGHTNESS),
             (HUE_API_STATE_HUE, STATE_HUE),
             (HUE_API_STATE_SAT, STATE_SATURATION),
@@ -589,7 +587,7 @@ class HueOneLightChangeView(HomeAssistantView):
             )
         ]
 
-        for (key, val) in (
+        for key, val in (
             (STATE_BRIGHTNESS, HUE_API_STATE_BRI),
             (STATE_HUE, HUE_API_STATE_HUE),
             (STATE_SATURATION, HUE_API_STATE_SAT),
@@ -707,7 +705,7 @@ def get_entity_state_dict(config: Config, entity: State) -> dict[str, Any]:
             data[STATE_SATURATION] = 0
 
     # Clamp brightness, hue, saturation, and color temp to valid values
-    for (key, v_min, v_max) in (
+    for key, v_min, v_max in (
         (STATE_BRIGHTNESS, HUE_API_STATE_BRI_MIN, HUE_API_STATE_BRI_MAX),
         (STATE_HUE, HUE_API_STATE_HUE_MIN, HUE_API_STATE_HUE_MAX),
         (STATE_SATURATION, HUE_API_STATE_SAT_MIN, HUE_API_STATE_SAT_MAX),
@@ -874,7 +872,8 @@ async def wait_for_state_change_or_timeout(
     unsub = async_track_state_change_event(hass, [entity_id], _async_event_changed)
 
     try:
-        await asyncio.wait_for(ev.wait(), timeout=STATE_CHANGE_WAIT_TIMEOUT)
+        async with async_timeout.timeout(STATE_CHANGE_WAIT_TIMEOUT):
+            await ev.wait()
     except asyncio.TimeoutError:
         pass
     finally:

@@ -7,8 +7,9 @@ import pytest
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util.dt import utcnow
 
+from .conftest import get_states_response_for_uid
+
 from tests.common import async_fire_time_changed
-from tests.components.freedompro.conftest import get_states_response_for_uid
 
 
 @pytest.mark.parametrize(
@@ -59,7 +60,6 @@ async def test_sensor_get_state(
         "homeassistant.components.freedompro.get_states",
         return_value=states_response,
     ):
-
         async_fire_time_changed(hass, utcnow() + timedelta(hours=2))
         await hass.async_block_till_done()
 

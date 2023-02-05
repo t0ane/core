@@ -7,7 +7,6 @@ from typing import Any
 from unittest.mock import call, patch
 
 import pytest
-from pytest import raises
 from pyvizio.api.apps import AppConfig
 from pyvizio.const import (
     APPS,
@@ -21,6 +20,7 @@ import voluptuous as vol
 
 from homeassistant.components.media_player import (
     ATTR_INPUT_SOURCE,
+    ATTR_INPUT_SOURCE_LIST,
     ATTR_MEDIA_VOLUME_LEVEL,
     ATTR_MEDIA_VOLUME_MUTED,
     ATTR_SOUND_MODE,
@@ -37,7 +37,6 @@ from homeassistant.components.media_player import (
     SERVICE_VOLUME_UP,
     MediaPlayerDeviceClass,
 )
-from homeassistant.components.media_player.const import ATTR_INPUT_SOURCE_LIST
 from homeassistant.components.vizio import validate_apps
 from homeassistant.components.vizio.const import (
     CONF_ADDITIONAL_CONFIGS,
@@ -658,10 +657,10 @@ async def test_setup_with_apps_additional_apps_config(
 
 def test_invalid_apps_config(hass: HomeAssistant):
     """Test that schema validation fails on certain conditions."""
-    with raises(vol.Invalid):
+    with pytest.raises(vol.Invalid):
         vol.Schema(vol.All(VIZIO_SCHEMA, validate_apps))(MOCK_TV_APPS_FAILURE)
 
-    with raises(vol.Invalid):
+    with pytest.raises(vol.Invalid):
         vol.Schema(vol.All(VIZIO_SCHEMA, validate_apps))(MOCK_SPEAKER_APPS_FAILURE)
 
 

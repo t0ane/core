@@ -4,16 +4,12 @@ from unittest.mock import patch
 from plexapi.exceptions import BadRequest, NotFound
 import pytest
 
-from homeassistant.components.media_player.const import (
+from homeassistant.components.media_player import (
     ATTR_MEDIA_CONTENT_ID,
     ATTR_MEDIA_CONTENT_TYPE,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
-    MEDIA_TYPE_EPISODE,
-    MEDIA_TYPE_MOVIE,
-    MEDIA_TYPE_MUSIC,
-    MEDIA_TYPE_PLAYLIST,
-    MEDIA_TYPE_VIDEO,
     SERVICE_PLAY_MEDIA,
+    MediaType,
 )
 from homeassistant.components.plex.const import DOMAIN
 from homeassistant.components.plex.errors import MediaNotFound
@@ -37,18 +33,19 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
         },
         True,
     )
-    with pytest.raises(MediaNotFound) as excinfo:
-        with patch("plexapi.server.PlexServer.fetchItem", side_effect=NotFound):
-            assert await hass.services.async_call(
-                MEDIA_PLAYER_DOMAIN,
-                SERVICE_PLAY_MEDIA,
-                {
-                    ATTR_ENTITY_ID: media_player_id,
-                    ATTR_MEDIA_CONTENT_TYPE: DOMAIN,
-                    ATTR_MEDIA_CONTENT_ID: 123,
-                },
-                True,
-            )
+    with pytest.raises(MediaNotFound) as excinfo, patch(
+        "plexapi.server.PlexServer.fetchItem", side_effect=NotFound
+    ):
+        assert await hass.services.async_call(
+            MEDIA_PLAYER_DOMAIN,
+            SERVICE_PLAY_MEDIA,
+            {
+                ATTR_ENTITY_ID: media_player_id,
+                ATTR_MEDIA_CONTENT_TYPE: DOMAIN,
+                ATTR_MEDIA_CONTENT_ID: 123,
+            },
+            True,
+        )
     assert "Media for key 123 not found" in str(excinfo.value)
 
     # TV show searches
@@ -59,7 +56,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_EPISODE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.EPISODE,
                 ATTR_MEDIA_CONTENT_ID: payload,
             },
             True,
@@ -72,7 +69,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_EPISODE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.EPISODE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "TV Shows", "show_name": "TV Show"}',
             },
             True,
@@ -84,7 +81,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_EPISODE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.EPISODE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "TV Shows", "episode_name": "An Episode"}',
             },
             True,
@@ -98,7 +95,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_EPISODE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.EPISODE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "TV Shows", "show_name": "TV Show", "season_number": 1}',
             },
             True,
@@ -112,7 +109,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_EPISODE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.EPISODE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "TV Shows", "show_name": "TV Show", "season_number": 1, "episode_number": 3}',
             },
             True,
@@ -131,7 +128,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "artist_name": "Artist"}',
             },
             True,
@@ -143,7 +140,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "album_name": "Album"}',
             },
             True,
@@ -155,7 +152,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "artist_name": "Artist", "track_name": "Track 3"}',
             },
             True,
@@ -169,7 +166,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "artist_name": "Artist", "album_name": "Album"}',
             },
             True,
@@ -183,7 +180,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "artist_name": "Artist", "album_name": "Album", "track_number": 3}',
             },
             True,
@@ -202,7 +199,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MUSIC,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Music", "artist_name": "Artist", "album_name": "Album", "track_name": "Track 3"}',
             },
             True,
@@ -222,7 +219,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_VIDEO,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.VIDEO,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "video_name": "Movie 1"}',
             },
             True,
@@ -234,7 +231,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "title": "Movie 1"}',
             },
             True,
@@ -248,7 +245,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_VIDEO,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.VIDEO,
                 ATTR_MEDIA_CONTENT_ID: payload,
             },
             True,
@@ -263,7 +260,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
                 SERVICE_PLAY_MEDIA,
                 {
                     ATTR_ENTITY_ID: media_player_id,
-                    ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_VIDEO,
+                    ATTR_MEDIA_CONTENT_TYPE: MediaType.VIDEO,
                     ATTR_MEDIA_CONTENT_ID: payload,
                 },
                 True,
@@ -276,7 +273,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
         SERVICE_PLAY_MEDIA,
         {
             ATTR_ENTITY_ID: media_player_id,
-            ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_PLAYLIST,
+            ATTR_MEDIA_CONTENT_TYPE: MediaType.PLAYLIST,
             ATTR_MEDIA_CONTENT_ID: '{"playlist_name": "Playlist 1"}',
         },
         True,
@@ -289,7 +286,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_PLAYLIST,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.PLAYLIST,
                 ATTR_MEDIA_CONTENT_ID: payload,
             },
             True,
@@ -303,7 +300,7 @@ async def test_media_lookups(hass, mock_plex_server, requests_mock, playqueue_cr
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player_id,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_PLAYLIST,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.PLAYLIST,
                 ATTR_MEDIA_CONTENT_ID: payload,
             },
             True,

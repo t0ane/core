@@ -33,7 +33,6 @@ class IntellifireDataUpdateCoordinator(DataUpdateCoordinator[IntellifirePollData
         self._api = api
 
     async def _async_update_data(self) -> IntellifirePollData:
-
         if not self._api.is_polling_in_background:
             LOGGER.info("Starting Intellifire Background Polling Loop")
             await self._api.start_background_polling()
@@ -45,7 +44,7 @@ class IntellifireDataUpdateCoordinator(DataUpdateCoordinator[IntellifirePollData
                 except (ConnectionError, ClientConnectionError) as exception:
                     raise UpdateFailed from exception
 
-        LOGGER.info("Failure Count %d", self._api.failed_poll_attempts)
+        LOGGER.debug("Failure Count %d", self._api.failed_poll_attempts)
         if self._api.failed_poll_attempts > 10:
             LOGGER.debug("Too many polling errors - raising exception")
             raise UpdateFailed

@@ -69,8 +69,7 @@ def denonavr_connect_fixture():
 
 
 async def test_config_flow_manual_host_success(hass):
-    """
-    Successful flow manually initialized by the user.
+    """Successful flow manually initialized by the user.
 
     Host specified.
     """
@@ -99,8 +98,7 @@ async def test_config_flow_manual_host_success(hass):
 
 
 async def test_config_flow_manual_discover_1_success(hass):
-    """
-    Successful flow manually initialized by the user.
+    """Successful flow manually initialized by the user.
 
     Without the host specified and 1 receiver discovered.
     """
@@ -133,8 +131,7 @@ async def test_config_flow_manual_discover_1_success(hass):
 
 
 async def test_config_flow_manual_discover_2_success(hass):
-    """
-    Successful flow manually initialized by the user.
+    """Successful flow manually initialized by the user.
 
     Without the host specified and 2 receiver discovered.
     """
@@ -176,8 +173,7 @@ async def test_config_flow_manual_discover_2_success(hass):
 
 
 async def test_config_flow_manual_discover_error(hass):
-    """
-    Failed flow manually initialized by the user.
+    """Failed flow manually initialized by the user.
 
     Without the host specified and no receiver discovered.
     """
@@ -204,8 +200,7 @@ async def test_config_flow_manual_discover_error(hass):
 
 
 async def test_config_flow_manual_host_no_serial(hass):
-    """
-    Successful flow manually initialized by the user.
+    """Successful flow manually initialized by the user.
 
     Host specified and an error getting the serial number.
     """
@@ -238,8 +233,7 @@ async def test_config_flow_manual_host_no_serial(hass):
 
 
 async def test_config_flow_manual_host_connection_error(hass):
-    """
-    Failed flow manually initialized by the user.
+    """Failed flow manually initialized by the user.
 
     Host specified and a connection error.
     """
@@ -268,8 +262,7 @@ async def test_config_flow_manual_host_connection_error(hass):
 
 
 async def test_config_flow_manual_host_no_device_info(hass):
-    """
-    Failed flow manually initialized by the user.
+    """Failed flow manually initialized by the user.
 
     Host specified and no device info (due to receiver power off).
     """
@@ -331,8 +324,7 @@ async def test_config_flow_ssdp(hass):
 
 
 async def test_config_flow_ssdp_not_denon(hass):
-    """
-    Failed flow initialized by ssdp discovery.
+    """Failed flow initialized by ssdp discovery.
 
     Not supported manufacturer.
     """
@@ -356,8 +348,7 @@ async def test_config_flow_ssdp_not_denon(hass):
 
 
 async def test_config_flow_ssdp_missing_info(hass):
-    """
-    Failed flow initialized by ssdp discovery.
+    """Failed flow initialized by ssdp discovery.
 
     Missing information.
     """
@@ -379,8 +370,7 @@ async def test_config_flow_ssdp_missing_info(hass):
 
 
 async def test_config_flow_ssdp_ignored_model(hass):
-    """
-    Failed flow initialized by ssdp discovery.
+    """Failed flow initialized by ssdp discovery.
 
     Model in the ignored models list.
     """
@@ -425,7 +415,7 @@ async def test_options_flow(hass):
 
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
     assert result["step_id"] == "init"
 
     result = await hass.config_entries.options.async_configure(
@@ -433,7 +423,7 @@ async def test_options_flow(hass):
         user_input={CONF_SHOW_ALL_SOURCES: True, CONF_ZONE2: True, CONF_ZONE3: True},
     )
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert config_entry.options == {
         CONF_SHOW_ALL_SOURCES: True,
         CONF_ZONE2: True,
@@ -443,8 +433,7 @@ async def test_options_flow(hass):
 
 
 async def test_config_flow_manual_host_no_serial_double_config(hass):
-    """
-    Failed flow manually initialized by the user twice.
+    """Failed flow manually initialized by the user twice.
 
     Host specified and an error getting the serial number.
     """

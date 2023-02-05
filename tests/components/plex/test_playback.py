@@ -4,12 +4,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from homeassistant.components.media_player.const import (
+from homeassistant.components.media_player import (
     ATTR_MEDIA_CONTENT_ID,
     ATTR_MEDIA_CONTENT_TYPE,
     DOMAIN as MP_DOMAIN,
-    MEDIA_TYPE_MOVIE,
     SERVICE_PLAY_MEDIA,
+    MediaType,
 )
 from homeassistant.components.plex.const import CONF_SERVER_IDENTIFIER, PLEX_URI_SCHEME
 from homeassistant.const import ATTR_ENTITY_ID
@@ -62,20 +62,21 @@ async def test_media_player_playback(
 
     # Test media lookup failure
     payload = '{"library_name": "Movies", "title": "Movie 1" }'
-    with patch("plexapi.library.LibrarySection.search", return_value=None):
-        with pytest.raises(HomeAssistantError) as excinfo:
-            assert await hass.services.async_call(
-                MP_DOMAIN,
-                SERVICE_PLAY_MEDIA,
-                {
-                    ATTR_ENTITY_ID: media_player,
-                    ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
-                    ATTR_MEDIA_CONTENT_ID: payload,
-                },
-                True,
-            )
-            assert not playmedia_mock.called
-    assert f"No {MEDIA_TYPE_MOVIE} results in 'Movies' for" in str(excinfo.value)
+    with patch(
+        "plexapi.library.LibrarySection.search", return_value=None
+    ), pytest.raises(HomeAssistantError) as excinfo:
+        assert await hass.services.async_call(
+            MP_DOMAIN,
+            SERVICE_PLAY_MEDIA,
+            {
+                ATTR_ENTITY_ID: media_player,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
+                ATTR_MEDIA_CONTENT_ID: payload,
+            },
+            True,
+        )
+        assert not playmedia_mock.called
+    assert f"No {MediaType.MOVIE} results in 'Movies' for" in str(excinfo.value)
 
     movie1 = MockPlexMedia("Movie", "movie")
     movie2 = MockPlexMedia("Movie II", "movie")
@@ -89,7 +90,7 @@ async def test_media_player_playback(
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "title": "Movie 1" }',
             },
             True,
@@ -104,7 +105,7 @@ async def test_media_player_playback(
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "title": "Movie 1", "resume": true}',
             },
             True,
@@ -119,7 +120,7 @@ async def test_media_player_playback(
         SERVICE_PLAY_MEDIA,
         {
             ATTR_ENTITY_ID: media_player,
-            ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+            ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
             ATTR_MEDIA_CONTENT_ID: PLEX_URI_SCHEME
             + f"{DEFAULT_DATA[CONF_SERVER_IDENTIFIER]}/1",
         },
@@ -134,7 +135,7 @@ async def test_media_player_playback(
         SERVICE_PLAY_MEDIA,
         {
             ATTR_ENTITY_ID: media_player,
-            ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+            ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
             ATTR_MEDIA_CONTENT_ID: PLEX_URI_SCHEME
             + f"{DEFAULT_DATA[CONF_SERVER_IDENTIFIER]}/1?resume=1",
         },
@@ -150,7 +151,7 @@ async def test_media_player_playback(
         SERVICE_PLAY_MEDIA,
         {
             ATTR_ENTITY_ID: media_player,
-            ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+            ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
             ATTR_MEDIA_CONTENT_ID: PLEX_URI_SCHEME + "1",
         },
         True,
@@ -166,7 +167,7 @@ async def test_media_player_playback(
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "title": "Movie" }',
             },
             True,
@@ -184,7 +185,7 @@ async def test_media_player_playback(
                 SERVICE_PLAY_MEDIA,
                 {
                     ATTR_ENTITY_ID: media_player,
-                    ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                    ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                     ATTR_MEDIA_CONTENT_ID: payload,
                 },
                 True,
@@ -202,7 +203,7 @@ async def test_media_player_playback(
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: media_player,
-                ATTR_MEDIA_CONTENT_TYPE: MEDIA_TYPE_MOVIE,
+                ATTR_MEDIA_CONTENT_TYPE: MediaType.MOVIE,
                 ATTR_MEDIA_CONTENT_ID: '{"library_name": "Movies", "title": "Movie", "allow_multiple": true }',
             },
             True,
